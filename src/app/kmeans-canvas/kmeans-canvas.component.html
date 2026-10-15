@@ -1,0 +1,153 @@
+<div class="toolbar">
+  <div class="group">
+    <label for="count">Puntos</label>
+    <input
+      id="count"
+      type="number"
+      min="100"
+      max="50000"
+      step="100"
+      [value]="pointCount()"
+      (input)="onCountChange($event)"
+      [disabled]="status() === 'running'"
+    />
+  </div>
+
+  <div class="group">
+    <label for="mode">Distribución</label>
+    <select
+      id="mode"
+      [value]="distribution()"
+      (change)="onDistributionChange($event)"
+      [disabled]="status() === 'running'"
+    >
+      @for (opt of distributionOptions; track opt.value) {
+        <option [value]="opt.value">{{ opt.label }}</option>
+      }
+    </select>
+  </div>
+
+  <button class="primary" (click)="generatePoints()" [disabled]="status() === 'running'">
+    🎲 Nuevos puntos
+  </button>
+  <button class="danger" (click)="resetCentroids()" [disabled]="status() === 'running'">
+    🧹 Borrar centroides
+  </button>
+
+  <button
+    class="primary"
+    (click)="start()"
+    [disabled]="centroidCount() === 0 || status() === 'running' || status() === 'paused' || status() === 'converged'"
+  >
+    ▶ Iniciar
+  </button>
+
+  <button
+    class="accent"
+    (click)="stepOnce()"
+    [disabled]="centroidCount() === 0 || status() === 'running' || status() === 'converged'"
+  >
+    ⏭ Paso
+  </button>
+
+  <button
+    (click)="pause()"
+    [disabled]="status() !== 'running'"
+  >
+    ⏸ Pausar
+  </button>
+
+  <button
+    class="ghost"
+    (click)="exportPng()"
+    [disabled]="pointCount() === 0"
+    title="Descargar el canvas como imagen PNG"
+  >
+    📷 Exportar PNG
+  </button>
+
+  <span class="info">
+    <span class="chip">Centroides: <strong>{{ centroidCount() }}</strong></span>
+    <span class="chip">Iteraciones: <strong>{{ iterations() }}</strong></span>
+    <span class="chip inertia" title="Suma de distancias² de cada punto a su centroide (K-means la minimiza)">
+      Inercia: <strong>{{ inertia() | number:'1.0-0' }}</strong>
+    </span>
+    @switch (status()) {
+      @case ('idle') { <span class="status-idle">Haz clic en el lienzo para colocar centroides</span> }
+      @case ('running') { <span class="status-running">Ejecutando...</span> }
+      @case ('paused') { <span class="status-paused">⏸ En pausa — usa "Paso" o "Iniciar"</span> }
+      @case ('converged') { <span class="status-converged">✅ ¡Convergió!</span> }
+    }
+  </span>
+
+  <div class="toolbar-row">
+    <div class="group">
+      <label for="autoK">Auto-colocar</label>
+      <input
+        id="autoK"
+        type="number"
+        min="1"
+        max="200"
+        step="1"
+        [value]="autoK()"
+        (input)="onAutoKChange($event)"
+        [disabled]="status() === 'running'"
+      />
+      <button class="accent" (click)="autoPlaceCentroids()" [disabled]="status() === 'running'">
+        🎯 k-means++
+      </button>
+      <button class="accent" (click)="randomPlaceCentroids()" [disabled]="status() === 'running'">
+        🔀 Al azar
+      </button>
+    </div>
+    <button (click)="shufflePoints()" [disabled]="status() === 'running'">
+      ♻️ Regenerar puntos
+    </button>
+    <span class="hint">Shift + clic: eliminar centroide · Clic en la lista: resaltar</span>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="canvas-wrap">
+    <canvas #canvas width="800" height="500" (click)="onCanvasClick($event)"></canvas>
+
+    <div class="hud">
+      <span class="hud-item">Iter <strong>{{ iterations() }}</strong></span>
+      <span class="hud-sep">·</span>
+      <span class="hud-item">k = <strong>{{ centroidCount() }}</strong></span>
+      <span class="hud-sep">·</span>
+      <span class="hud-item">Inercia <strong>{{ inertia() | number:'1.0-0' }}</strong></span>
+    </div>
+  </div>
+
+  <aside class="panel">
+    <header class="panel-header">
+      <h2>Centroides</h2>
+      <span class="count">{{ centroidCount() }}</span>
+    </header>
+
+    @if (centroidCount() === 0) {
+      <div class="panel-empty">
+        Aún no hay centroides.<br />
+        Haz clic en el lienzo o usa <strong>k-means++</strong>.
+      </div>
+    } @else {
+      <ul class="centroid-list">
+        @for (c of centroidList(); track c.index) {
+          <li
+            class="centroid-item"
+            [class.selected]="selectedIndex() === c.index"
+            (click)="selectCentroid(c.index)"
+          >
+            <span class="swatch" [style.background]="c.color"></span>
+            <div class="meta">
+              <div class="name">Centroide {{ c.index + 1 }}</div>
+              <div class="coords">({{ c.x | number:'1.0-0' }}, {{ c.y | number:'1.0-0' }})</div>
+            </div>
+            <span class="points-badge">{{ c.count }} pts</span>
+          </li>
+        }
+      </ul>
+    }
+  </aside>
+</div>
